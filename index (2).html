@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ChargeKE — Verified EV Charging Stations in Kenya</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sora:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root {
+    --green: #00E87A; --accent: #B8FF6A;
+    --dark: #080d0a; --card: #0f1a12; --card2: #142018; --border: #1c2e20;
+    --text: #e4f2e8; --muted: #6b9e7a;
+    --orange: #FF7A3D; --blue: #3DBBFF; --yellow: #FFD23D; --purple: #C07AFF;
+    --radius: 14px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Sora', sans-serif; background: var(--dark); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; z-index: -1; background-image: linear-gradient(rgba(0,232,122,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(0,232,122,0.025) 1px, transparent 1px); background-size: 48px 48px; }
+
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 500; display: flex; align-items: center; justify-content: space-between; padding: 16px 40px; background: rgba(8,13,10,0.95); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); }
+  .logo { font-family: 'Space Mono', monospace; font-size: 1.2rem; font-weight: 700; color: var(--green); letter-spacing: -1px; }
+  .logo span { color: var(--accent); }
+  .nav-right { display: flex; align-items: center; gap: 20px; }
+  .nav-links { display: flex; gap: 28px; }
+  .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; transition: color 0.2s; }
+  .nav-links a:hover { color: var(--green); }
+  .vbadge { background: rgba(0,232,122,0.1); border: 1px solid rgba(0,232,122,0.3); color: var(--green); font-size: 0.7rem; font-weight: 700; padding: 5px 12px; border-radius: 100px; font-family: 'Space Mono', monospace; }
+
+  .hero { padding: 110px 40px 44px; max-width: 1240px; margin: 0 auto; }
+  .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; margin-bottom: 44px; }
+  .eyebrow { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--green); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+  .eyebrow::before { content: ''; width: 28px; height: 2px; background: var(--green); display: block; }
+  h1 { font-size: clamp(2.2rem, 4vw, 3.5rem); font-weight: 800; line-height: 1.07; letter-spacing: -2px; margin-bottom: 16px; }
+  h1 em { font-style: normal; color: var(--green); }
+  .hdesc { font-size: 0.96rem; color: var(--muted); line-height: 1.7; margin-bottom: 28px; }
+  .hbtns { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn { padding: 12px 24px; border-radius: 10px; font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.86rem; cursor: pointer; border: none; transition: all 0.2s; }
+  .btn-g { background: var(--green); color: var(--dark); }
+  .btn-g:hover { background: var(--accent); transform: translateY(-2px); }
+  .btn-o { background: transparent; color: var(--text); border: 1.5px solid var(--border); }
+  .btn-o:hover { border-color: var(--green); color: var(--green); }
+
+  .stats { display: grid; grid-template-columns: repeat(4,1fr); background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .stat { padding: 20px 14px; border-right: 1px solid var(--border); text-align: center; }
+  .stat:last-child { border-right: none; }
+  .sn { font-family: 'Space Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--green); display: block; margin-bottom: 3px; }
+  .sl { font-size: 0.68rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* DISCLAIMER */
+  .disc { max-width: 1240px; margin: 0 auto; padding: 0 40px 24px; }
+  .disc-box { background: rgba(255,210,61,0.05); border: 1px solid rgba(255,210,61,0.2); border-radius: var(--radius); padding: 13px 16px; display: flex; gap: 10px; }
+  .disc-txt { font-size: 0.77rem; color: var(--muted); line-height: 1.6; }
+  .disc-txt strong { color: var(--yellow); }
+  .disc-txt a { color: var(--green); }
+
+  /* SEARCH */
+  .srch { max-width: 1240px; margin: 0 auto; padding: 0 40px 24px; }
+  .srch-row { display: flex; gap: 9px; flex-wrap: wrap; }
+  .sbox { flex: 1; min-width: 220px; position: relative; }
+  .sbox input { width: 100%; padding: 12px 14px 12px 40px; background: var(--card); border: 1.5px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'Sora', sans-serif; font-size: 0.85rem; outline: none; transition: border-color 0.2s; }
+  .sbox input:focus { border-color: var(--green); }
+  .sbox input::placeholder { color: var(--muted); }
+  .si { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 0.9rem; }
+  .fp { padding: 12px 15px; background: var(--card); border: 1.5px solid var(--border); border-radius: 10px; color: var(--muted); font-family: 'Sora', sans-serif; font-size: 0.79rem; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .fp.on, .fp:hover { border-color: var(--green); color: var(--green); background: rgba(0,232,122,0.07); }
+
+  /* MAP */
+  .mapsec { max-width: 1240px; margin: 0 auto; padding: 0 40px 44px; }
+  .mapsec h2 { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 10px; }
+  .leg { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+  .li { display: flex; align-items: center; gap: 6px; font-size: 0.74rem; color: var(--muted); }
+  .ld { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+  #map { height: 500px; border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; }
+  .mnote { margin-top: 8px; font-size: 0.73rem; color: var(--muted); }
+
+  /* CARDS */
+  .cardssec { max-width: 1240px; margin: 0 auto; padding: 0 40px 80px; }
+  .sechdr { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+  .sectit { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.5px; }
+  .cnt { font-family: 'Space Mono', monospace; font-size: 0.75rem; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; cursor: pointer; transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s; position: relative; overflow: hidden; }
+  .cab { position: absolute; top: 0; left: 0; right: 0; height: 3px; opacity: 0; transition: opacity 0.2s; }
+  .card:hover { border-color: var(--green); transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,232,122,0.07); }
+  .card:hover .cab { opacity: 1; }
+  .ctop { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .ntag { font-size: 0.65rem; font-weight: 700; padding: 4px 9px; border-radius: 100px; text-transform: uppercase; letter-spacing: 0.07em; font-family: 'Space Mono', monospace; }
+  .spill { font-size: 0.65rem; font-weight: 700; padding: 4px 9px; border-radius: 100px; font-family: 'Space Mono', monospace; }
+  .sok { background: rgba(0,232,122,0.1); color: var(--green); }
+  .smo { background: rgba(61,187,255,0.1); color: var(--blue); }
+  .sco { background: rgba(255,210,61,0.1); color: var(--yellow); }
+  .cname { font-size: 0.96rem; font-weight: 700; margin-bottom: 4px; line-height: 1.3; }
+  .cloc { font-size: 0.77rem; color: var(--muted); margin-bottom: 13px; }
+  .specs { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 13px; }
+  .sp { background: var(--card2); border-radius: 7px; padding: 8px 10px; }
+  .spl { font-size: 0.63rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+  .spv { font-size: 0.8rem; font-weight: 700; }
+  .cfoot { display: flex; justify-content: space-between; align-items: center; padding-top: 11px; border-top: 1px solid var(--border); }
+  .ams { display: flex; gap: 5px; }
+  .am { width: 24px; height: 24px; background: var(--card2); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
+  .price { font-family: 'Space Mono', monospace; font-size: 0.79rem; color: var(--green); font-weight: 700; }
+  .vtick { display: inline-flex; align-items: center; gap: 4px; font-size: 0.64rem; color: var(--green); background: rgba(0,232,122,0.07); padding: 3px 7px; border-radius: 100px; margin-top: 7px; }
+
+  /* NETWORKS */
+  .netsec { max-width: 1240px; margin: 0 auto; padding: 44px 40px 80px; border-top: 1px solid var(--border); }
+  .nettit { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; font-family: 'Space Mono', monospace; margin-bottom: 16px; }
+  .nets { display: flex; gap: 10px; flex-wrap: wrap; }
+  .nc { padding: 8px 16px; border-radius: 100px; border: 1.5px solid; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+
+  /* MODAL */
+  .mbg { position: fixed; inset: 0; z-index: 600; background: rgba(0,0,0,0.82); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.22s; }
+  .mbg.open { opacity: 1; pointer-events: all; }
+  .modal { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 28px; max-width: 500px; width: 100%; transform: translateY(16px); transition: transform 0.22s; position: relative; max-height: 90vh; overflow-y: auto; }
+  .mbg.open .modal { transform: translateY(0); }
+  .mx { position: absolute; top: 14px; right: 14px; background: var(--card2); border: 1px solid var(--border); border-radius: 7px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--muted); font-size: 0.95rem; }
+  .mx:hover { color: var(--text); }
+  .mtit { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; padding-right: 36px; }
+  .mloc { color: var(--muted); font-size: 0.82rem; margin-bottom: 16px; }
+  .mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 16px; }
+  .ms { background: var(--card2); border-radius: 9px; padding: 11px 13px; }
+  .msl { font-size: 0.63rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+  .msv { font-size: 0.9rem; font-weight: 700; }
+  .mdesc { font-size: 0.82rem; color: var(--muted); line-height: 1.65; margin-bottom: 14px; }
+  .msrc { font-size: 0.71rem; color: var(--muted); margin-bottom: 14px; padding: 9px 12px; background: rgba(0,232,122,0.04); border-radius: 7px; border-left: 3px solid var(--green); }
+  .msrc a { color: var(--green); }
+  .mbtn { width: 100%; padding: 12px; background: var(--green); color: var(--dark); border: none; border-radius: 10px; font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.88rem; cursor: pointer; text-decoration: none; display: block; text-align: center; transition: background 0.2s; }
+  .mbtn:hover { background: var(--accent); }
+  .nores { text-align: center; padding: 60px 20px; color: var(--muted); }
+
+  /* Leaflet popup override */
+  .leaflet-popup-content-wrapper { background: #0f1a12 !important; border: 1px solid #1c2e20 !important; border-radius: 10px !important; color: #e4f2e8 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important; }
+  .leaflet-popup-tip { background: #0f1a12 !important; }
+  .leaflet-popup-content { margin: 12px 14px !important; font-family: 'Sora', sans-serif; font-size: 13px; }
+  .popup-name { font-weight: 700; font-size: 0.88rem; margin-bottom: 3px; color: #e4f2e8; }
+  .popup-loc { color: #6b9e7a; font-size: 0.75rem; margin-bottom: 8px; }
+  .popup-btn { background: #00E87A; color: #080d0a; border: none; border-radius: 6px; padding: 6px 12px; font-size: 0.75rem; font-weight: 700; cursor: pointer; font-family: 'Sora', sans-serif; width: 100%; }
+  .popup-btn:hover { background: #B8FF6A; }
+  .leaflet-control-zoom a { background: #0f1a12 !important; color: #00E87A !important; border-color: #1c2e20 !important; }
+  .leaflet-control-attribution { background: rgba(8,13,10,0.8) !important; color: #6b9e7a !important; font-size: 10px !important; }
+  .leaflet-control-attribution a { color: #00E87A !important; }
+
+  @media(max-width:768px){
+    nav{padding:14px 20px;} .nav-links{display:none;}
+    .hero{padding:80px 20px 32px;} .hero-grid{grid-template-columns:1fr;gap:24px;}
+    .stats{grid-template-columns:1fr 1fr;}
+    .stat:nth-child(2){border-right:none;} .stat:nth-child(3){border-top:1px solid var(--border);}
+    .disc,.srch,.mapsec,.cardssec,.netsec{padding-left:20px;padding-right:20px;}
+    .grid{grid-template-columns:1fr;} #map{height:360px;}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Charge<span>KE</span></div>
+  <div class="nav-right">
+    <div class="nav-links">
+      <a href="#map">Map</a>
+      <a href="#stations">Stations</a>
+      <a href="#networks">Networks</a>
+    </div>
+    <div class="vbadge">✓ Verified Data</div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-grid">
+    <div>
+      <div class="eyebrow">Kenya EV Charging Infrastructure</div>
+      <h1>Real Chargers,<br><em>Real Locations</em></h1>
+      <p class="hdesc">Source-verified EV charging stations across Kenya — Kenya Power's free pilots, Roam Hubs at TotalEnergies forecourts, and BasiGo's fast-charge bus depots. Every station is backed by a published source.</p>
+      <div class="hbtns">
+        <button class="btn btn-g" onclick="document.getElementById('map').scrollIntoView({behavior:'smooth'})">View on Map</button>
+        <button class="btn btn-o" onclick="document.getElementById('stations').scrollIntoView({behavior:'smooth'})">Browse Stations</button>
+      </div>
+    </div>
+    <div>
+      <div class="stats">
+        <div class="stat"><span class="sn">9,047+</span><span class="sl">Registered EVs</span></div>
+        <div class="stat"><span class="sn">15</span><span class="sl">Verified Stations</span></div>
+        <div class="stat"><span class="sn">4</span><span class="sl">Networks</span></div>
+        <div class="stat"><span class="sn">Free</span><span class="sl">KPLC Pilot</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="disc">
+  <div class="disc-box">
+    <span style="font-size:1rem;flex-shrink:0;margin-top:1px">ℹ️</span>
+    <div class="disc-txt">
+      <strong>About this data:</strong> All stations are verified from published news, company press releases, or Google Maps listings. Stations marked <strong>Coming Soon</strong> are officially announced. For real-time availability call Kenya Power on <strong style="color:var(--green)">0800 720 566</strong> or use the <a href="https://evchaja.com" target="_blank">EVChaja app</a>.
+    </div>
+  </div>
+</div>
+
+<div class="srch">
+  <div class="srch-row">
+    <div class="sbox">
+      <span class="si">⚡</span>
+      <input type="text" id="searchInput" placeholder="Search by name, location or network..." oninput="render()">
+    </div>
+    <button class="fp on" onclick="setF('all',this)">All</button>
+    <button class="fp" onclick="setF('open',this)">Open Now</button>
+    <button class="fp" onclick="setF('moto',this)">E-Bikes</button>
+    <button class="fp" onclick="setF('coming',this)">Coming Soon</button>
+    <button class="fp" onclick="setF('free',this)">Free</button>
+  </div>
+</div>
+
+<!-- MAP -->
+<div class="mapsec" id="map">
+  <h2>Station Map</h2>
+  <div class="leg">
+    <div class="li"><div class="ld" style="background:#00E87A"></div>Kenya Power (KPLC)</div>
+    <div class="li"><div class="ld" style="background:#FF7A3D"></div>Roam Hub / TotalEnergies</div>
+    <div class="li"><div class="ld" style="background:#3DBBFF"></div>BasiGo</div>
+    <div class="li"><div class="ld" style="background:#C07AFF"></div>EVChaja</div>
+  </div>
+  <div id="map"></div>
+  <p class="mnote">📍 Click any marker to see station details. Map data © OpenStreetMap contributors.</p>
+</div>
+
+<!-- CARDS -->
+<section class="cardssec" id="stations">
+  <div class="sechdr">
+    <h2 class="sectit">Verified Stations</h2>
+    <span class="cnt" id="cnt"></span>
+  </div>
+  <div class="grid" id="grid"></div>
+</section>
+
+<!-- NETWORKS -->
+<section class="netsec" id="networks">
+  <div class="nettit">Active Networks in Kenya</div>
+  <div class="nets">
+    <div class="nc" style="color:#00E87A;border-color:rgba(0,232,122,0.3)">⚡ Kenya Power (KPLC)</div>
+    <div class="nc" style="color:#FF7A3D;border-color:rgba(255,122,61,0.3)">🔴 Roam Hub</div>
+    <div class="nc" style="color:#3DBBFF;border-color:rgba(61,187,255,0.3)">🔵 BasiGo</div>
+    <div class="nc" style="color:#C07AFF;border-color:rgba(192,122,255,0.3)">🟣 EVChaja</div>
+    <div class="nc" style="color:#FFD23D;border-color:rgba(255,210,61,0.3)">🟡 Arc Ride</div>
+    <div class="nc" style="color:#6b9e7a;border-color:#1c2e20">🟤 Ampersand</div>
+  </div>
+</section>
+
+<!-- MODAL -->
+<div class="mbg" id="mb" onclick="closeBg(event)">
+  <div class="modal">
+    <div class="mx" onclick="closeModal()">✕</div>
+    <div id="md"></div>
+  </div>
+</div>
+
+<script>
+// ── STATION DATA ──────────────────────────────────────────────────────────────
+const S = [
+  { id:0, name:"Kenya Power — Stima Plaza", loc:"Stima Plaza, Parklands, Nairobi", net:"Kenya Power (KPLC)", nc:"#00E87A",
+    tags:["open","free"], power:"50 kW DC + 22 kW AC", conn:"Type 2 / DC Fast", slots:"2 chargers", cost:"Free (pilot)", hours:"24/7", ams:["🅿️","🔒","☕"],
+    desc:"Kenya Power's first public EV charging station in Kenya. Collect a free RFID card from KP security on arrival. 50 kW DC charger (≈40 min to 80%) and a 22 kW AC charger (≈2 hrs). Installed at KSh 6.5 million.",
+    src:"The Star, May 2024", url:"https://www.the-star.co.ke/news/2024-05-08-stuck-find-this-free-electric-vehicle-charging-station-in-nairobi",
+    maps:"https://maps.google.com/?q=Stima+Plaza+Parklands+Nairobi", lat:-1.2698, lng:36.8207 },
+
+  { id:1, name:"Kenya Power — Ruaraka Depot", loc:"Kenya Power Ruaraka Complex, Nairobi", net:"Kenya Power (KPLC)", nc:"#00E87A",
+    tags:["open","free"], power:"22 kW AC", conn:"Type 2", slots:"2 chargers", cost:"Free (pilot)", hours:"Mon–Sat 8am–12pm", ams:["🅿️","🔒"],
+    desc:"Kenya Power's second free public charging station at their Ruaraka depot. Collect a free RFID card from security. Open during depot hours.",
+    src:"The Star, May 2024", url:"https://www.the-star.co.ke/news/2024-05-08-stuck-find-this-free-electric-vehicle-charging-station-in-nairobi",
+    maps:"https://maps.google.com/?q=Kenya+Power+Ruaraka+Complex+Nairobi", lat:-1.2595, lng:36.8595 },
+
+  { id:2, name:"Kenya Power — Electricity House CBD", loc:"Aga Khan Walk, Nairobi CBD", net:"Kenya Power (KPLC)", nc:"#00E87A",
+    tags:["open","coming"], power:"22 kW AC", conn:"Type 2", slots:"Planned", cost:"TBC", hours:"Mon–Fri 8am–5pm", ams:["🅿️","🏢"],
+    desc:"Kenya Power HQ — one of 9 office locations confirmed for EV chargers by July 2024. MD Joseph Siror named Electricity House in the rollout.",
+    src:"Kenyans.co.ke, April 2024", url:"https://www.kenyans.co.ke/news/99968-kenya-power-set-9-electric-vehicle-charging-stations-july-2024",
+    maps:"https://maps.google.com/?q=Electricity+House+Nairobi+CBD", lat:-1.2880, lng:36.8260 },
+
+  { id:3, name:"Kenya Power — Donholm Office", loc:"Donholm, Eastlands, Nairobi", net:"Kenya Power (KPLC)", nc:"#00E87A",
+    tags:["coming"], power:"22 kW AC", conn:"Type 2", slots:"Planned", cost:"TBC", hours:"Mon–Fri 9am–5pm", ams:["🅿️"],
+    desc:"One of 9 Kenya Power offices confirmed for EV charger installation as part of a KSh 20 million annual EV infrastructure budget.",
+    src:"Kenyans.co.ke, April 2024", url:"https://www.kenyans.co.ke/news/99968-kenya-power-set-9-electric-vehicle-charging-stations-july-2024",
+    maps:"https://maps.google.com/?q=Kenya+Power+Donholm+Nairobi", lat:-1.3009, lng:36.8850 },
+
+  { id:4, name:"Kenya Power — Roysambu (Nairobi North)", loc:"Kenya Power Roysambu Office, Nairobi", net:"Kenya Power (KPLC)", nc:"#00E87A",
+    tags:["coming"], power:"22 kW AC", conn:"Type 2", slots:"Planned", cost:"TBC", hours:"Mon–Fri 9am–5pm", ams:["🅿️"],
+    desc:"Roysambu is one of the 9 Kenya Power offices confirmed for EV charger installation, serving north Nairobi including Kasarani.",
+    src:"Kenyans.co.ke, April 2024", url:"https://www.kenyans.co.ke/news/99968-kenya-power-set-9-electric-vehicle-charging-stations-july-2024",
+    maps:"https://maps.google.com/?q=Kenya+Power+Roysambu+Nairobi", lat:-1.2177, lng:36.8918 },
+
+  { id:5, name:"Roam Hub — TotalEnergies Gigiri", loc:"TotalEnergies Gigiri, Limuru Road, Nairobi", net:"Roam Hub / TotalEnergies", nc:"#FF7A3D",
+    tags:["open","moto"], power:"7 kW AC", conn:"Proprietary (e-bikes)", slots:"Multiple", cost:"Battery rental/swap", hours:"24/7", ams:["⛽","🛒","🔧","☕"],
+    desc:"The first TotalEnergies EV charging site in Kenya — and Kenya's inaugural such station. Roam Hub for e-motorcycle charging, battery swapping, spare parts and maintenance. One of 13 TotalEnergies EV sites in Kenya.",
+    src:"Business Daily Africa, June 2024", url:"https://www.businessdailyafrica.com/bd/corporate/companies/total-sets-up-13-electric-vehicle-charging-stations--4655694",
+    maps:"https://maps.google.com/?q=TotalEnergies+Gigiri+Limuru+Road+Nairobi", lat:-1.2321, lng:36.8035 },
+
+  { id:6, name:"Roam Hub — TotalEnergies Lusaka Road", loc:"TotalEnergies, Lusaka Road, Nairobi", net:"Roam Hub / TotalEnergies", nc:"#FF7A3D",
+    tags:["open","moto"], power:"7 kW AC", conn:"Proprietary (e-bikes)", slots:"Multiple", cost:"Battery rental/swap", hours:"24/7", ams:["⛽","🔧","🅿️"],
+    desc:"Roam named Lusaka Road as one of three active TotalEnergies Roam Hub locations in Nairobi — offering charging, battery rentals, parts and maintenance for boda-boda operators.",
+    src:"Business Daily Africa, June 2024", url:"https://www.businessdailyafrica.com/bd/corporate/companies/total-sets-up-13-electric-vehicle-charging-stations--4655694",
+    maps:"https://maps.google.com/?q=TotalEnergies+Lusaka+Rd+Nairobi", lat:-1.3014, lng:36.8328 },
+
+  { id:7, name:"Roam Hub — TotalEnergies Waiyaki Way", loc:"TotalEnergies, Waiyaki Way, Nairobi", net:"Roam Hub / TotalEnergies", nc:"#FF7A3D",
+    tags:["open","moto"], power:"7 kW AC", conn:"Proprietary (e-bikes)", slots:"Multiple", cost:"Battery rental/swap", hours:"9am–midnight", ams:["⛽","🔧","🍔"],
+    desc:"Roam confirmed Waiyaki Way as one of three TotalEnergies Roam Hub locations. The station also has a KFC drive-through. Roam plans to expand to Dagoreti and South C.",
+    src:"Business Daily Africa, June 2024", url:"https://www.businessdailyafrica.com/bd/corporate/companies/total-sets-up-13-electric-vehicle-charging-stations--4655694",
+    maps:"https://maps.google.com/?q=TotalEnergies+Waiyaki+Way+Nairobi", lat:-1.2587, lng:36.7813 },
+
+  { id:8, name:"Roam Hub — TotalEnergies Outering Road", loc:"TotalEnergies, Outer Ring Road, Nairobi", net:"Roam Hub / TotalEnergies", nc:"#FF7A3D",
+    tags:["open","moto"], power:"7 kW AC", conn:"Proprietary (e-bikes)", slots:"Multiple", cost:"Battery rental/swap", hours:"24/7", ams:["⛽","🔧","🅿️"],
+    desc:"Roam's third confirmed TotalEnergies Roam Hub in Nairobi. High-traffic 24/7 station on the Outer Ring Road serving east Nairobi boda-boda operators.",
+    src:"Business Daily Africa, June 2024", url:"https://www.businessdailyafrica.com/bd/corporate/companies/total-sets-up-13-electric-vehicle-charging-stations--4655694",
+    maps:"https://maps.google.com/?q=TotalEnergies+Outer+Ring+Rd+Nairobi", lat:-1.2696, lng:36.8802 },
+
+  { id:9, name:"BasiGo Fast Charge — Buru Buru", loc:"Rabai Road, Buru Buru, Nairobi", net:"BasiGo", nc:"#3DBBFF",
+    tags:["open"], power:"DC Fast Charge", conn:"CCS-2", slots:"6 buses + cars", cost:"KES 16/kWh", hours:"Primarily overnight", ams:["🅿️","🚌"],
+    desc:"Kenya's first DC Fast Charge station connected to the e-mobility tariff (EPRA, March 2023). Charges 6 electric buses simultaneously; CCS-2 also works for passenger cars. Serves OMA Services and Embassava SACCO buses.",
+    src:"CleanTechnica / Capital FM, May 2023", url:"https://cleantechnica.com/2023/05/25/the-first-ev-charging-station-connected-to-kenyas-new-e-mobility-tariff-has-been-launched/",
+    maps:"https://maps.google.com/?q=Rabai+Road+Buru+Buru+Nairobi", lat:-1.2782, lng:36.8732 },
+
+  { id:10, name:"BasiGo Fast Charge — Embakasi", loc:"Embakasi, Nairobi", net:"BasiGo", nc:"#3DBBFF",
+    tags:["open"], power:"DC Fast Charge", conn:"CCS-2", slots:"Multiple buses + cars", cost:"KES 16/kWh", hours:"Primarily overnight", ams:["🅿️","🚌"],
+    desc:"One of BasiGo's three confirmed Nairobi-area depots (Embakasi, Kikuyu, Buru Buru). CCS-2 chargers fully recharge a bus in 2 hours. Also open to compatible passenger cars and trucks. 90% renewable power.",
+    src:"BasiGo / CleanTechnica, 2023", url:"https://cleantechnica.com/2023/05/25/the-first-ev-charging-station-connected-to-kenyas-new-e-mobility-tariff-has-been-launched/",
+    maps:"https://maps.google.com/?q=BasiGo+Embakasi+Nairobi", lat:-1.3205, lng:36.8970 },
+
+  { id:11, name:"BasiGo Fast Charge — Kikuyu", loc:"Kikuyu, Kiambu County", net:"BasiGo", nc:"#3DBBFF",
+    tags:["open"], power:"DC Fast Charge", conn:"CCS-2", slots:"Multiple buses + cars", cost:"KES 16/kWh", hours:"Primarily overnight", ams:["🅿️","🚌"],
+    desc:"BasiGo's Kikuyu depot — third of three confirmed locations. Positioned along western Nairobi bus routes. CCS-2 chargers serve both buses and private EVs overnight.",
+    src:"Africa Tech Show / CleanTechnica, 2023", url:"https://www.africatechshow.com/html/news/contents/244/247.html",
+    maps:"https://maps.google.com/?q=Kikuyu+Kiambu+Kenya", lat:-1.2492, lng:36.6613 },
+
+  { id:12, name:"EVChaja Station — Limuru Road", loc:"Limuru Road, Nairobi (near Two Rivers)", net:"EVChaja", nc:"#C07AFF",
+    tags:["open"], power:"AC Charging", conn:"Type 2", slots:"Available", cost:"Pay via EVChaja app", hours:"24/7", ams:["🅿️","📱"],
+    desc:"Confirmed EVChaja station on Limuru Road — rated 5.0 on Google Maps. EVChaja is Kenya's first dedicated EV charging network with a mobile app for real-time availability and M-Pesa / card payment.",
+    src:"Google Maps / EVChaja, 2024", url:"https://automag.co.ke/2025/01/22/guide-to-electric-vehicle-charging-stations-in-kenya/",
+    maps:"https://maps.google.com/?q=-1.2108,36.7946", lat:-1.2108, lng:36.7946 },
+
+  { id:13, name:"Two Rivers Mall — EV Charging", loc:"Two Rivers Mall, Limuru Road, Nairobi", net:"EVChaja", nc:"#C07AFF",
+    tags:["open"], power:"AC Charging", conn:"Type 2", slots:"Available", cost:"Pay via app / card", hours:"9am–9pm (mall hours)", ams:["🛒","🍽️","🅿️","🎭"],
+    desc:"Two Rivers Mall on Limuru Road is confirmed as a key Nairobi EV charging location. Charge while you shop at Carrefour or dine at any restaurant in the mall.",
+    src:"AutoMag Kenya, 2025", url:"https://automag.co.ke/2025/07/13/where-to-find-ev-charging-stations-in-kenya/",
+    maps:"https://maps.google.com/?q=Two+Rivers+Mall+Limuru+Road+Nairobi", lat:-1.2118, lng:36.7957 },
+
+  { id:14, name:"Sarit Centre — EV Charging", loc:"Sarit Centre, Westlands, Nairobi", net:"EVChaja", nc:"#C07AFF",
+    tags:["open"], power:"AC Charging", conn:"Type 2", slots:"Available", cost:"Pay via app / card", hours:"9am–6pm (mall hours)", ams:["🛒","🍽️","🎬","🅿️"],
+    desc:"Sarit Centre, Westlands is confirmed as a key Nairobi EV charging location — serving the Westlands, Parklands and Upper Hill corridor.",
+    src:"AutoMag Kenya, 2025", url:"https://automag.co.ke/2025/07/13/where-to-find-ev-charging-stations-in-kenya/",
+    maps:"https://maps.google.com/?q=Sarit+Centre+Westlands+Nairobi", lat:-1.2612, lng:36.8020 }
+];
+
+// ── LEAFLET MAP ───────────────────────────────────────────────────────────────
+const leafletMap = L.map('map', { zoomControl: true, scrollWheelZoom: true })
+  .setView([-1.270, 36.820], 12);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd', maxZoom: 19
+}).addTo(leafletMap);
+
+function makeIcon(color) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="38" viewBox="0 0 30 38">
+    <path d="M15 0C6.7 0 0 6.7 0 15c0 10 15 23 15 23S30 25 30 15C30 6.7 23.3 0 15 0z" fill="${color}"/>
+    <circle cx="15" cy="15" r="8" fill="rgba(0,0,0,0.35)"/>
+    <text x="15" y="19.5" text-anchor="middle" font-size="11" fill="white" font-family="sans-serif" font-weight="bold">⚡</text>
+  </svg>`;
+  return L.divIcon({
+    html: svg,
+    className: '',
+    iconSize: [30, 38],
+    iconAnchor: [15, 38],
+    popupAnchor: [0, -40]
+  });
+}
+
+const markers = {};
+S.forEach(s => {
+  const marker = L.marker([s.lat, s.lng], { icon: makeIcon(s.nc) })
+    .bindPopup(`
+      <div class="popup-name">${s.name}</div>
+      <div class="popup-loc">📍 ${s.loc}</div>
+      <button class="popup-btn" onclick="openM(${s.id});document.getElementById('mb').classList.add('open')">View Details →</button>
+    `, { maxWidth: 220 })
+    .addTo(leafletMap);
+  markers[s.id] = marker;
+});
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let cf = 'all';
+
+function stLabel(s) {
+  if (s.tags.includes('coming')) return { txt:'Coming Soon', cls:'sco' };
+  if (s.tags.includes('moto'))   return { txt:'E-Bikes Only', cls:'smo' };
+  return { txt:'Open', cls:'sok' };
+}
+
+function render() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const list = S.filter(s => {
+    const fm = cf === 'all' || s.tags.includes(cf);
+    const sm = !q || (s.name+s.loc+s.net+s.cost).toLowerCase().includes(q);
+    return fm && sm;
+  });
+
+  // update map markers
+  const visIds = new Set(list.map(s => s.id));
+  S.forEach(s => {
+    const m = markers[s.id];
+    if (visIds.has(s.id)) { if (!leafletMap.hasLayer(m)) m.addTo(leafletMap); }
+    else { if (leafletMap.hasLayer(m)) m.remove(); }
+  });
+
+  document.getElementById('cnt').textContent = `${list.length} station${list.length!==1?'s':''} found`;
+  const g = document.getElementById('grid');
+  if (!list.length) { g.innerHTML='<div class="nores"><p>No stations match your search.</p></div>'; return; }
+  g.innerHTML = list.map(s => {
+    const st = stLabel(s);
+    return `<div class="card" onclick="openM(${s.id})">
+      <div class="cab" style="background:${s.nc}"></div>
+      <div class="ctop">
+        <span class="ntag" style="background:${s.nc}18;color:${s.nc}">${s.net}</span>
+        <span class="spill ${st.cls}">${st.txt}</span>
+      </div>
+      <div class="cname">${s.name}</div>
+      <div class="cloc">📍 ${s.loc}</div>
+      <div class="specs">
+        <div class="sp"><div class="spl">Power</div><div class="spv" style="font-size:0.75rem">${s.power}</div></div>
+        <div class="sp"><div class="spl">Connectors</div><div class="spv" style="font-size:0.72rem">${s.conn}</div></div>
+        <div class="sp"><div class="spl">Capacity</div><div class="spv" style="font-size:0.75rem">${s.slots}</div></div>
+        <div class="sp"><div class="spl">Hours</div><div class="spv" style="font-size:0.72rem">${s.hours}</div></div>
+      </div>
+      <div class="cfoot">
+        <div class="ams">${s.ams.map(a=>`<div class="am">${a}</div>`).join('')}</div>
+        <span class="price">${s.cost}</span>
+      </div>
+      <div class="vtick">✓ Source verified</div>
+    </div>`;
+  }).join('');
+}
+
+function setF(f, btn) {
+  cf = f;
+  document.querySelectorAll('.fp').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  render();
+}
+
+function openM(id) {
+  const s = S[id];
+  const st = stLabel(s);
+  // Pan map to station
+  leafletMap.setView([s.lat, s.lng], 15, {animate: true});
+  markers[id].openPopup();
+
+  document.getElementById('md').innerHTML = `
+    <span class="ntag" style="background:${s.nc}18;color:${s.nc};display:inline-block;margin-bottom:12px">${s.net}</span>
+    <div class="mtit">${s.name}</div>
+    <div class="mloc">📍 ${s.loc}</div>
+    <div class="mgrid">
+      <div class="ms"><div class="msl">Status</div><div class="msv"><span class="spill ${st.cls}">${st.txt}</span></div></div>
+      <div class="ms"><div class="msl">Cost</div><div class="msv" style="font-size:0.8rem">${s.cost}</div></div>
+      <div class="ms"><div class="msl">Power</div><div class="msv" style="font-size:0.8rem">${s.power}</div></div>
+      <div class="ms"><div class="msl">Connectors</div><div class="msv" style="font-size:0.78rem">${s.conn}</div></div>
+      <div class="ms"><div class="msl">Capacity</div><div class="msv" style="font-size:0.78rem">${s.slots}</div></div>
+      <div class="ms"><div class="msl">Hours</div><div class="msv" style="font-size:0.78rem">${s.hours}</div></div>
+    </div>
+    <div class="mdesc">${s.desc}</div>
+    <div class="msrc">📰 Source: <a href="${s.url}" target="_blank">${s.src} ↗</a></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">${s.ams.map(a=>`<div class="am" style="width:30px;height:30px;font-size:0.88rem">${a}</div>`).join('')}</div>
+    <a class="mbtn" href="${s.maps}" target="_blank">Open in Google Maps →</a>
+  `;
+  document.getElementById('mb').classList.add('open');
+}
+
+function closeModal() { document.getElementById('mb').classList.remove('open'); }
+function closeBg(e) { if (e.target === document.getElementById('mb')) closeModal(); }
+
+render();
+</script>
+</body>
+</html>
